@@ -1,8 +1,7 @@
 # Tirar dúvida com o professor:
 # 1- O tamanho dos blocos da memória principal devem ser do tipo 2^n? Para que nenhum bit
 # seja disperdiçado ao estruturar as palavras da cache?
-# 2- É necessário exibir o carregamento das palavras para uma linha cache?
-# 3- Como determinar o tamanho da memória principal e da memória cache compartilhada?
+# 2- Como determinar o tamanho da memória principal e da memória cache compartilhada?
 
 from dataclasses import dataclass
 from sys import argv
@@ -247,6 +246,9 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     '''
     # Inicia o sistema de memórias
     cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag)
+    # Iniciando a construção do Log
+    log = arq.open('simulador.log', 'w')
+
     # Acesso à memória
     entrada = arq_entrada.readline().split()
     while len(entrada) > 0:
@@ -297,6 +299,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
             print('ERRO: Operação não identificada!')
         entrada = arq_entrada.readline().split()
     arq_entrada.close()
+    log.close()
     return None
 
 def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int) -> tuple:
@@ -315,32 +318,9 @@ def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, taman
     memoriaPrincipal = MemoriaPrincipal(tamanho_bloco, quantidade_blocos_memoria_principal)
     return cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal
 
-# Funções de Gerenciamento da Memória Principal -------------------------
+# Funções de console e log ----------------------------------------------
 
-# Funções de Gerenciamento da Memória Cache Compartilhada ---------------
 
-# Funções de Gerenciamento da Memória Cache Privada ---------------------
-
-# -----------------------------------------------------------------------
-# -----------------------------------------------------------------------
-
-def visualizar_enderecos():
-    arq = open('small2.data', 'r')
-    linha = arq.readline()
-    while linha:
-        endereco = linha.split()[2]
-        print(endereco)
-        # 16: Interpretação como hexadecimal
-        # 32: Quantidade de bits utilizados para endereçamento
-        print(bin(int(endereco, 16))[2:].zfill(32))
-        linha = arq.readline()
-    arq.close()
-
-def teste():
-    ...
-
-# -----------------------------------------------------------------------
-# -----------------------------------------------------------------------
 
 # Início do Programa ----------------------------------------------------
 
