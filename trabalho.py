@@ -2,6 +2,8 @@
 # 1- O tamanho dos blocos da memória principal devem ser do tipo 2^n? Para que nenhum bit
 # seja disperdiçado ao estruturar as palavras da cache?
 # 2- Como determinar o tamanho da memória principal e da memória cache compartilhada?
+# 3- Como ele espera que a memória principal seja representada?
+# 4- Como ele espera que o barramento MESI seja representado?
 
 from dataclasses import dataclass
 from sys import argv
