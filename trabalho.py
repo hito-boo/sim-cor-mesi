@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 from sys import argv
+import codecs
 import io
 import math
 
@@ -236,7 +237,7 @@ def le_configuracao(arq_cong: io.TextIOWrapper) -> tuple:
     quantidade_blocos_memoria_principal = int(arq_cong.readline())
     numero_processadores = int(arq_cong.readline())
     politica_substituicao = int(arq_cong.readline())
-    numero_bits_tag = 32 - int(math.log(TAM_LINHA_CACHE, 2))
+    numero_bits_tag = 32 - int(math.log(tamanho_bloco, 2))
     arq_cong.close()
     return tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag
 
@@ -244,51 +245,62 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     '''
     Realiza a simulação de um protocolo MESI em um multiprocessador a partir das configurações passadas.
     '''
+    # Iniciando a construção do Log
+    log = codecs.open('simulador.txt', 'w', 'utf-8')
+    console_configuracao(log, tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao)
     # Inicia o sistema de memórias
     cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag)
-    # Iniciando a construção do Log
-    log = arq.open('simulador.log', 'w')
-
+    print('\nSistema de Memória Criado\n')
+    log.write('\nSistema de Memória Criado\n')
+    console_sistema_memoria(log, memoriaPrincipal, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
     # Acesso à memória
     entrada = arq_entrada.readline().split()
     while len(entrada) > 0:
-        processador, instrucao, endereco = int(entrada[0]), entrada[1], bin(int(entrada[2], 16))[2:].zfill(32)
+        processador, tipo_operacao, endereco = int(entrada[0]), entrada[1], bin(int(entrada[2], 16))[2:].zfill(32)
+        console_acesso(log, processador, tipo_operacao, endereco)
         # Leitura de instrução
-        if instrucao == '0':
+        if tipo_operacao == '0':
             if endereco[:numero_bits_tag] in cachesPrivadasInstrucoes[processador].linhas_cache:
                 # Cache Hit
-                print(f"Cache hit for instruction processor {processador} on address {endereco[:numero_bits_tag]}")
                 cachesPrivadasInstrucoes[processador].cache_hit(endereco)
+                log.write('Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
             else:
                 # Cache Miss
-                print(f"Cache miss for instruction processor {processador} on address {endereco[:numero_bits_tag]}")
                 cachesPrivadasInstrucoes[processador].cache_miss(endereco, cacheCompartilhada, memoriaPrincipal)
+                log.write('Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
         # Leitura de dado
-        elif instrucao == '2':
+        elif tipo_operacao == '2':
             if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
                 # Cache Hit
-                print(f"R - Cache hit for data processor {processador} on address {endereco[:numero_bits_tag]}")
                 cachesPrivadasDados[processador].cache_hit(endereco)
+                log.write('Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                # Alteração do estado do bloco do endereço nas demais caches
                 if endereco[:numero_bits_tag] in cachesPrivadasDados[proc].linhas_cache and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'M' and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'S':
                     cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'E'
             else:
                 # Cache Miss
-                print(f"R - Cache miss for data processor {processador} on address {endereco[:numero_bits_tag]}")
                 cachesPrivadasDados[processador].cache_miss(endereco, 'E', cacheCompartilhada, memoriaPrincipal)
+                log.write('Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
             # Alteração do estado do bloco do endereço nas demais caches
             for proc in range(numero_processadores):
                 if proc != processador and endereco[:numero_bits_tag] in cachesPrivadasDados[proc].linhas_cache and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'I':
                     cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'S'
         # Escrita de dado
-        elif instrucao == '3':
+        elif tipo_operacao == '3':
             if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
                 # Cache Hit
-                print(f"W - Cache hit for data processor {processador} on address {endereco[:numero_bits_tag]}")
                 cachesPrivadasDados[processador].cache_hit(endereco)
+                log.write('Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
                 cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'M'
             else:
                 # Cache Miss
-                print(f"W - Cache miss data for processor {processador} on address {endereco[:numero_bits_tag]}")
+                log.write('Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
                 cachesPrivadasDados[processador].cache_miss(endereco, 'M', cacheCompartilhada, memoriaPrincipal)
             # Alteração do estado do bloco do endereço nas demais caches
             for proc in range(numero_processadores):
@@ -297,6 +309,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
         # Operação não identificada
         else:
             print('ERRO: Operação não identificada!')
+        console_sistema_memoria(log, memoriaPrincipal, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
         entrada = arq_entrada.readline().split()
     arq_entrada.close()
     log.close()
@@ -320,7 +333,124 @@ def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, taman
 
 # Funções de console e log ----------------------------------------------
 
+def console_configuracao(log: io.TextIOWrapper, tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int) -> None:
+    '''
+    Cria o texto de console da configuração utilizada na simulação.
+    '''
+    texto = 'Configuração da Simulação\n'
+    texto += 'Tamanho do Bloco de Memória: ' + str(tamanho_bloco) + 'palavras.\n'
+    texto += 'Quantidade de Bits necessários para mapeamento do bloco: ' + str(32 - int(math.log(tamanho_bloco, 2))) + ' Bits.\n'
+    texto += 'Quantidade de linhas presentes nas Memórias Caches Privadas: ' + str(tamanho_cache_privada) + ' linhas.\n'
+    texto += 'Quantidade de linhas presentes na Memória Cache Compartilhada: ' + str(tamanho_cache_compartilhada) + ' linhas.\n'
+    texto += 'Quantidade de blocos presentes na Memória Principal: ' + str(quantidade_blocos_memoria_principal) + ' blocos.\n'
+    texto += 'Quantidade de processadores: ' + str(numero_processadores) + ' processadores.\n'
+    if politica_substituicao == 0:
+        texto += 'Política de Substituição: 0 - Least Recently Used (LRU - Menos Usado Recentemente)\n'
+    elif politica_substituicao == 1:
+        texto += 'Política de Substituição: 1 - First In First Out (FIFO - Primeiro a entrar é o primeiro a sair; fila)\n'
+    else:
+        texto += 'ERRO: POLÍTICA DE SUBSTITUIÇÃO INVÁLIDA! 0- LRU; 1- FIFO\n'
+    print(texto)
+    log.write(texto)
+    return None
 
+def console_acesso(log: io.TextIOWrapper, processador: int, tipo_operacao: str, endereco: str) -> None:
+    '''
+    Cria o texto de console do acesso realizado pelos multiprocessadores.
+    '''
+    texto = '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
+    texto += '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
+    texto += 'Processador Id. ' + str(processador) + ' - ' + tipo_operacao + ') '
+    if tipo_operacao == '0':
+        texto += 'Operação de Leitura de Instrução - Endereço: ' + endereco + '\n'
+    elif tipo_operacao == '2':
+        texto += 'Operação de Leitura de Dado - Endereço ' + endereco + '\n'
+    elif tipo_operacao == '3':
+        texto += 'Operação de Escrita de Dado - Endereço ' + endereco + '\n'
+    else:
+        texto += 'ERRO: OPERAÇÃO NÃO RECONHECIDA!\n'
+    texto += '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
+    texto += '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
+    print(texto)
+    log.write(texto)
+    return None
+
+def console_sistema_memoria(log: io.TextIOWrapper, memoriaPrincipal: MemoriaPrincipal, cacheCompartilhada: CacheCompartilhada, cachesPrivadasInstrucoes: list[CachePrivadaInstrucoes], cachesPrivadasDados: list[CachePrivadaDados]) -> None:
+    '''
+    Cria o texto de console exibindo o estado do sistema de memória.
+    '''
+    # print('\nMemória Principal -----------------------------------------------------------------------------------------------------------------------------------------------\n')
+    # log.write('\nMemória Principal --------------------------------------------------------------------------------------------------------------------------------------\n')
+    # console_memoria_principal(log, memoriaPrincipal)
+    print('\nMemória Cache Compartilhada -------------------------------------------------------------------------------------------------------------------------------------\n')
+    log.write('\nMemória Cache Compartilhada -----------------------------------------------------------------------------------------------------------------------------\n')
+    console_cache_compartilhada(log, cacheCompartilhada)
+    print('\nMemórias Caches Privadas de Instruções --------------------------------------------------------------------------------------------------------------------------\n')
+    log.write('\Memórias Caches Privadas de Instruções -------------------------------------------------------------------------------------------------------------------\n')
+    for indice in range(len(cachesPrivadasInstrucoes)):
+        console_cache_privada_instrucoes(log, cachesPrivadasInstrucoes[indice], indice)
+    print('\nMemórias Caches Privadas de Dados -------------------------------------------------------------------------------------------------------------------------------\n')
+    log.write('\nMemórias Caches Privadas de Dados -----------------------------------------------------------------------------------------------------------------------\n')
+    for indice in range(len(cachesPrivadasDados)):
+        console_cache_privada_dados(log, cachesPrivadasDados[indice], indice)
+    return None
+
+def console_memoria_principal(log: io.TextIOWrapper, memoriaPrincipal: MemoriaPrincipal) -> None:
+    return None
+
+def console_cache_compartilhada(log: io.TextIOWrapper, cacheCompartilhada: CacheCompartilhada) -> None:
+    '''
+    Cria o texto de console exibindo o estado da Memória Cache Compartilhada.
+    '''
+    tags = cacheCompartilhada.linhas_cache.keys()
+    texto = 'Memória Cache Compartilhada:\n'
+    for tag in tags:
+        texto += 'Tag: ' + tag + ' - Linhas: '
+        for linha in cacheCompartilhada.linhas_cache[tag]:
+            texto += linha + ', '
+        texto += '\n'
+    texto += 'Lista de Prioridade de Substituição: '
+    for posicao in range(len(cacheCompartilhada.lista_subs)):
+        texto += 'Pos. ' + str(posicao) + ': ' + cacheCompartilhada.lista_subs[posicao] + ' - '
+    print(texto + '\n\n')
+    log.write(texto + '\n\n')
+    return None
+
+def console_cache_privada_instrucoes(log: io.TextIOWrapper, cachePrivadaInstrucoes: CachePrivadaInstrucoes, indice: int) -> None:
+    '''
+    Cria o texto de console exibindo o estado da Memória Cache Privada de Instruções.
+    '''
+    tags = cachePrivadaInstrucoes.linhas_cache.keys()
+    texto = 'Memória Cache Privada de Instruções ' + str(indice) + '\n'
+    for tag in tags:
+        texto += 'Tag: ' + tag + ' - Linhas: '
+        for linha in cachePrivadaInstrucoes.linhas_cache[tag]:
+            texto += linha + ', '
+        texto += '\n'
+    texto += 'Lista de Prioridade de Substituição: '
+    for posicao in range(len(cachePrivadaInstrucoes.lista_subs)):
+        texto += 'Pos. ' + str(posicao) + ': ' + cachePrivadaInstrucoes.lista_subs[posicao] + ' - '
+    print(texto + '\n\n')
+    log.write(texto + '\n\n')
+    return None
+
+def console_cache_privada_dados(log: io.TextIOWrapper, cachePrivadaDados: CachePrivadaDados, indice: int) -> None:
+    '''
+    Cria o texto de console exibindo o estado da Memória Cache Privada de Dados.
+    '''
+    tags = cachePrivadaDados.linhas_cache.keys()
+    texto = 'Memória Cache Privada de Dados Id. ' + str(indice) + '\n'
+    for tag in tags:
+        texto += 'Tag: ' + tag + ' - Estado: ' + cachePrivadaDados.linhas_cache[tag].estado + ' - Linhas: '
+        for linha in cachePrivadaDados.linhas_cache[tag].palavras:
+            texto += linha + ', '
+        texto += '\n'
+    texto += 'Lista de Prioridade de Substituição: '
+    for posicao in range(len(cachePrivadaDados.lista_subs)):
+        texto += 'Pos. ' + str(posicao) + ': ' + cachePrivadaDados.lista_subs[posicao] + ' - '
+    print(texto + '\n\n')
+    log.write(texto + '\n\n')
+    return None
 
 # Início do Programa ----------------------------------------------------
 
