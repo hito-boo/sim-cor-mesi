@@ -30,7 +30,6 @@ O segundo arquivo de entrada deve ser um arquivo que contenha os acessos realiza
 3. Endereço do acesso
 
 Dessa forma, a maneira de inicializar a simulação é: python simulador_mesi.py arquivo_configuração arquivo_acessos
-Neste repositório, há exemplos de arquivos de configuração e de testes em suas respectivas pastas.
 
 # Saída
 Ao longo da simulação, todo o conteúdo exibido no console é escrito em um arquivo chamado _simulador.txt_. A saída se inicia mostrando as características utilizadas (lidas do arquivo de configuração), bem como a criação do sistema de memória. Então, para cada acesso ao longo da simulação, é mostrada a linha de acesso, o sinal envivado ao barramento de coerência e o estado do sistema de memória após a realização da operação.
