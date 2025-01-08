@@ -1,9 +1,9 @@
 # Tirar dúvida com o professor:
-# 1- O tamanho dos blocos da memória principal devem ser do tipo 2^n? Para que nenhum bit
+# 1- O tamanho dos blocos da memória principal deve ser do tipo 2^n? Para que nenhum bit
 # seja disperdiçado ao estruturar as palavras da cache?
-# 2- Como determinar o tamanho da memória principal e da memória cache compartilhada?
-# 3- Como ele espera que a memória principal seja representada?
-# 4- Como ele espera que o barramento MESI seja representado?
+# 2- Como ele espera que a memória principal seja representada?
+# 3- Como ele espera que o barramento MESI seja representado?
+# 4- Como determinar o tamanho da memória principal e da memória cache compartilhada?
 
 from dataclasses import dataclass
 from sys import argv
@@ -340,7 +340,7 @@ def console_configuracao(log: io.TextIOWrapper, tamanho_bloco: int, tamanho_cach
     Cria o texto de console da configuração utilizada na simulação.
     '''
     texto = 'Configuração da Simulação\n'
-    texto += 'Tamanho do Bloco de Memória: ' + str(tamanho_bloco) + 'palavras.\n'
+    texto += 'Tamanho do Bloco de Memória: ' + str(tamanho_bloco) + ' palavras.\n'
     texto += 'Quantidade de Bits necessários para mapeamento do bloco: ' + str(32 - int(math.log(tamanho_bloco, 2))) + ' Bits.\n'
     texto += 'Quantidade de linhas presentes nas Memórias Caches Privadas: ' + str(tamanho_cache_privada) + ' linhas.\n'
     texto += 'Quantidade de linhas presentes na Memória Cache Compartilhada: ' + str(tamanho_cache_compartilhada) + ' linhas.\n'
