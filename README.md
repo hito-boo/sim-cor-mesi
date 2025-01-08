@@ -2,7 +2,7 @@
 Trabalho para a disciplina de Arquitetura e Organização de Computadores II do curso de graduação em Ciência de Computação, na Universidade Estadual de Maringá.
 
 # Objetivo e Implementação
-O arquivo _Python_ presente no repositório é um **Simulador de Coerência MESI**, que funciona a partir de um sistema de memória composto por Memória Principal, Memória Cache Compartilhada e Memórias Caches Privadas reservadas para instruções e para dados. O mapeamento das linhas utilizado é o associativo e foi implementado por meio de dicionários, cujas chaves são _Tags_ (isto é, os _Bits_ mais significativos de um bloco de endereços) que referenciam uma lista de sequências compostas pelos _Bits_ menos significativos dos endereços de um bloco. Ou seja, apenas os endereços são ilustrados nas memórias, sem a representação das palavras, visto que a simulação não cobre a execução real de operações de leitura ou de escrita. Para as Memórias Caches Privadas de Dados, além do bloco, é presente um estado para ele no dicionário.
+O arquivo simulador_mesi.py presente no repositório é um **Simulador de Coerência MESI**, que funciona a partir de um sistema de memória composto por Memória Principal, Memória Cache Compartilhada e Memórias Caches Privadas reservadas para instruções e para dados. O mapeamento das linhas utilizado é o associativo e foi implementado por meio de dicionários, cujas chaves são _Tags_ (isto é, os _Bits_ mais significativos de um bloco de endereços) que referenciam uma lista de sequências compostas pelos _Bits_ menos significativos dos endereços de um bloco. Ou seja, apenas os endereços são ilustrados nas memórias, sem a representação das palavras, visto que a simulação não cobre a execução real de operações de leitura ou de escrita. Para as Memórias Caches Privadas de Dados, além do bloco, é presente um estado para ele no dicionário.
 
 # Entradas e Modo de Uso
 A execução da simulação exige dois arquivos de entrada.
@@ -17,7 +17,7 @@ O primeiro é um que contenha as configurações necessárias para a simulação
     - 0: LRU - Least Recently Used (Menos recentemente utilizado)
     - 1: FIFO - First In First Out (Fila, isto é, primeiro a entrar será o primeiro a sair)
 
-**É necessário que a quantidade de endereços por linha possa ser escrito da forma 2 elevado a N**. Isso se deve pela necessidade de haver uma quantidade exata de _Bits_ que represente de forma exata a quantidade de endereços presentes em uma linha.
+**É necessário que a quantidade de endereços por linha possa ser escrito da forma 2 elevado a N**. Isso se deve pela necessidade de haver uma quantidade exata de _Bits_ que represente de forma exata a quantidade de endereços presentes em uma linha. Além disso, a quantidadede linhas nas Memórias Caches Privadas **deve ser menor** que a quantidade de linhas na Memória Cache Compartilhada. Caso essas restrições não sejam seguidas, a simulação resultará em erros.
 
 O segundo arquivo de entrada deve ser um arquivo que contenha os acessos realizado no processamento, no qual cada linha possui três elementos separados por espaço:
 1. Índice do processador utilizado
@@ -29,7 +29,7 @@ O segundo arquivo de entrada deve ser um arquivo que contenha os acessos realiza
     - 3: Escrita de dado
 3. Endereço do acesso
 
-Dessa forma, a maneira de inicializar a simulação é: python trabalho.py arquivo_configuração arquivo_acessos
+Dessa forma, a maneira de inicializar a simulação é: python simulador_mesi.py arquivo_configuração arquivo_acessos
 Neste repositório, há exemplos de arquivos de configuração e de testes em suas respectivas pastas.
 
 # Saída

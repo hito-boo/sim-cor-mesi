@@ -1,9 +1,5 @@
-# Tirar dúvida com o professor:
-# 1- O tamanho dos blocos da memória principal deve ser do tipo 2^n? Para que nenhum bit
-# seja disperdiçado ao estruturar as palavras da cache?
-# 2- Como ele espera que a memória principal seja representada?
-# 3- Como ele espera que o barramento MESI seja representado?
-# 4- Como determinar o tamanho da memória principal e da memória cache compartilhada?
+# Simulador de Coerência MESI
+# Aluno: Vitor da Rocha Machado (RA: 132769)
 
 from dataclasses import dataclass
 from sys import argv
@@ -11,36 +7,21 @@ import codecs
 import io
 import math
 
-NUM_BITS_END = 32 # Constante
-
-# Deverão ser entradas:
-TAM_LINHA_CACHE = 16 # Tamanho do bloco da Memória Principal
-
-NUM_BITS_LINHA_CACHE = int(math.log(TAM_LINHA_CACHE, 2))
-NUM_BITS_TAG = NUM_BITS_END - NUM_BITS_LINHA_CACHE
-
-NUM_LINHAS_CACHE_PRIVADA = 4
-NUM_LINHAS_CACHE_COMPARTILHADA = NUM_LINHAS_CACHE_PRIVADA * 2
-NUM_BLOCOS_MEMORIA_PRINCIPAL = NUM_LINHAS_CACHE_COMPARTILHADA * 2
-
-NUM_PROCESSADORES = 7
-
-SUBSTITUICAO = 0
-# 0: LRU (Não teve acesso por mais tempo)
-# 1: FIFO (Fila)
-
 class MemoriaPrincipal:
     '''
     Representa uma Memória Principal
     '''
-    blocos: dict # {Tag do bloco: [Últimos bits dos endereços do bloco]}
-    tamanho_blocos: int # Guarda o tamanho dos blocos da memória principal
-    quantidade_blocos: int # Quantidade de blocos da memória principal
 
-    def __init__(self, tamanho_blocos, quantidade_blocos):
-        self.blocos = {}
-        self.tamanho_blocos = tamanho_blocos
-        self.quantidade_blocos = quantidade_blocos
+    def carrega_bloco(self, tamanho_linha: int, numero_bits_linha_cache) -> list[str]:
+        '''
+        Simula o carregamento de um bloco da memória principal na memória cache.
+        '''
+        palavras = []
+        palavra = 0
+        while palavra < tamanho_linha:
+            palavras.append(bin(palavra)[2:].zfill(numero_bits_linha_cache))
+            palavra += 1
+        return palavras
 
 class CacheCompartilhada:
     '''
@@ -80,7 +61,7 @@ class CacheCompartilhada:
             # Remoção de um bloco para substituição
             tag_rem = self.lista_subs.pop(0)
             self.linhas_cache.pop(tag_rem)
-        self.linhas_cache[endereco[:self.numero_bits_tag]] = __carrega_bloco_provisorio__(self.tamanho_linhas, 32 - self.numero_bits_tag)
+        self.linhas_cache[endereco[:self.numero_bits_tag]] = memoriaPrincipal.carrega_bloco(self.tamanho_linhas, 32 - self.numero_bits_tag)
         self.lista_subs.append(endereco[:self.numero_bits_tag])
         return None
 
@@ -186,24 +167,6 @@ class CachePrivadaDados:
         self.lista_subs.append(endereco[:self.numero_bits_tag])
         return None
 
-# -------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------------------------
-def __carrega_bloco_provisorio__(tamanho_linha: int, numero_bits_linha_cache) -> list[str]:
-    '''
-    PROVISÓRIO: LACUNA NA REPRESENTAÇÃO DA MEMÓRIA PRINCIPAL
-    Simula o carregamento de um bloco da memória principal na memória cache.
-    '''
-    palavras = []
-    palavra = 0
-    while palavra < tamanho_linha:
-        palavras.append(bin(palavra)[2:].zfill(numero_bits_linha_cache))
-        palavra += 1
-    return palavras
-# -------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------------------------
-
 # Função Principal ------------------------------------------------------
 
 def main() -> None:
@@ -234,14 +197,20 @@ def le_configuracao(arq_cong: io.TextIOWrapper) -> tuple:
     Lê o arquivo de configuração e retorna as configurações da simulação.
     '''
     tamanho_bloco = int(arq_cong.readline())
-    tamanho_cache_privada = int(arq_cong.readline())
-    tamanho_cache_compartilhada = int(arq_cong.readline())
-    quantidade_blocos_memoria_principal = int(arq_cong.readline())
-    numero_processadores = int(arq_cong.readline())
-    politica_substituicao = int(arq_cong.readline())
-    numero_bits_tag = 32 - int(math.log(tamanho_bloco, 2))
-    arq_cong.close()
-    return tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag
+    try:
+        numero_bits_tag = 32 - int(math.log(tamanho_bloco, 2))
+    except:
+        raise ValueError('ERRO: Tamanho de bloco deve ser da forma 2^N!')
+    else:
+        tamanho_cache_privada = int(arq_cong.readline())
+        tamanho_cache_compartilhada = int(arq_cong.readline())
+        if tamanho_cache_privada >= tamanho_cache_compartilhada:
+            raise ValueError('ERRO: Tamanho das Memórias Caches Privadas deve ser menor que o tamanho da Memória Cache Compartilhada!')
+        quantidade_blocos_memoria_principal = int(arq_cong.readline())
+        numero_processadores = int(arq_cong.readline())
+        politica_substituicao = int(arq_cong.readline())
+        arq_cong.close()
+        return tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag
 
 def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int, arq_entrada: io.TextIOWrapper) -> None:
     '''
@@ -254,7 +223,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag)
     print('\nSistema de Memória Criado\n')
     log.write('\nSistema de Memória Criado\n')
-    console_sistema_memoria(log, memoriaPrincipal, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
+    console_sistema_memoria(log, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
     # Acesso à memória
     entrada = arq_entrada.readline().split()
     while len(entrada) > 0:
@@ -311,7 +280,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
         # Operação não identificada
         else:
             print('ERRO: Operação não identificada!')
-        console_sistema_memoria(log, memoriaPrincipal, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
+        console_sistema_memoria(log, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
         entrada = arq_entrada.readline().split()
     arq_entrada.close()
     log.close()
@@ -330,7 +299,7 @@ def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, taman
     # Iniciando a cache compartilhada.
     cacheCompartilhada = CacheCompartilhada(tamanho_bloco, numero_bits_tag, tamanho_cache_compartilhada, politica_substituicao)
     # Iniciando a memória principal.
-    memoriaPrincipal = MemoriaPrincipal(tamanho_bloco, quantidade_blocos_memoria_principal)
+    memoriaPrincipal = MemoriaPrincipal()
     return cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal
 
 # Funções de console e log ----------------------------------------------
@@ -362,13 +331,13 @@ def console_acesso(log: io.TextIOWrapper, processador: int, tipo_operacao: str, 
     '''
     texto = '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
     texto += '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
-    texto += 'Processador Id. ' + str(processador) + ' - ' + tipo_operacao + ') '
+    texto += 'Processador Id. ' + str(processador) + ' - ' + tipo_operacao
     if tipo_operacao == '0':
-        texto += 'Operação de Leitura de Instrução - Endereço: ' + endereco + '\n'
+        texto += ' (Operação de Leitura de Instrução) - Endereço: ' + endereco + '\n'
     elif tipo_operacao == '2':
-        texto += 'Operação de Leitura de Dado - Endereço ' + endereco + '\n'
+        texto += ' (Operação de Leitura de Dado) - Endereço ' + endereco + '\n'
     elif tipo_operacao == '3':
-        texto += 'Operação de Escrita de Dado - Endereço ' + endereco + '\n'
+        texto += ' (Operação de Escrita de Dado) - Endereço ' + endereco + '\n'
     else:
         texto += 'ERRO: OPERAÇÃO NÃO RECONHECIDA!\n'
     texto += '---------------------------------------------------------------------------------------------------------------------------------------------------------\n'
@@ -377,13 +346,10 @@ def console_acesso(log: io.TextIOWrapper, processador: int, tipo_operacao: str, 
     log.write(texto)
     return None
 
-def console_sistema_memoria(log: io.TextIOWrapper, memoriaPrincipal: MemoriaPrincipal, cacheCompartilhada: CacheCompartilhada, cachesPrivadasInstrucoes: list[CachePrivadaInstrucoes], cachesPrivadasDados: list[CachePrivadaDados]) -> None:
+def console_sistema_memoria(log: io.TextIOWrapper, cacheCompartilhada: CacheCompartilhada, cachesPrivadasInstrucoes: list[CachePrivadaInstrucoes], cachesPrivadasDados: list[CachePrivadaDados]) -> None:
     '''
     Cria o texto de console exibindo o estado do sistema de memória.
     '''
-    # print('\nMemória Principal -----------------------------------------------------------------------------------------------------------------------------------------------\n')
-    # log.write('\nMemória Principal --------------------------------------------------------------------------------------------------------------------------------------\n')
-    # console_memoria_principal(log, memoriaPrincipal)
     print('\nMemória Cache Compartilhada -------------------------------------------------------------------------------------------------------------------------------------\n')
     log.write('\nMemória Cache Compartilhada -----------------------------------------------------------------------------------------------------------------------------\n')
     console_cache_compartilhada(log, cacheCompartilhada)
@@ -395,9 +361,6 @@ def console_sistema_memoria(log: io.TextIOWrapper, memoriaPrincipal: MemoriaPrin
     log.write('\nMemórias Caches Privadas de Dados -----------------------------------------------------------------------------------------------------------------------\n')
     for indice in range(len(cachesPrivadasDados)):
         console_cache_privada_dados(log, cachesPrivadasDados[indice], indice)
-    return None
-
-def console_memoria_principal(log: io.TextIOWrapper, memoriaPrincipal: MemoriaPrincipal) -> None:
     return None
 
 def console_cache_compartilhada(log: io.TextIOWrapper, cacheCompartilhada: CacheCompartilhada) -> None:
