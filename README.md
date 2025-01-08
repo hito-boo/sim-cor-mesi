@@ -6,7 +6,7 @@ O arquivo simulador_mesi.py presente no repositório é um **Simulador de Coerê
 
 # Entradas e Modo de Uso
 A execução da simulação exige dois arquivos de entrada.
-O primeiro é um que contenha as configurações necessárias para a simulação, de forma que as seis primeiras linhas do arquivo devem conter apenas um número inteiro, os quais representam respectivamente:
+O primeiro é um que contenha as configurações necessárias para a simulação, de forma que as seis primeiras linhas do arquivo devem conter **apenas um número inteiro não negativo**, os quais representam respectivamente:
 1. Quantidade de endereços por linha (Tamanho do bloco)
     - Determina a quantidade de _Bits_ utilizados na _Tag_ e na linha.
 2. Quantidade de linhas nas Memórias Caches Privadas
@@ -17,7 +17,7 @@ O primeiro é um que contenha as configurações necessárias para a simulação
     - 0: LRU - Least Recently Used (Menos recentemente utilizado)
     - 1: FIFO - First In First Out (Fila, isto é, primeiro a entrar será o primeiro a sair)
 
-**É necessário que a quantidade de endereços por linha possa ser escrito da forma 2 elevado a N**. Isso se deve pela necessidade de haver uma quantidade exata de _Bits_ que represente de forma exata a quantidade de endereços presentes em uma linha. Além disso, a quantidadede linhas nas Memórias Caches Privadas **deve ser menor** que a quantidade de linhas na Memória Cache Compartilhada. Caso essas restrições não sejam seguidas, a simulação resultará em erros.
+**O valor correto para o tamanho de bloco é da forma 2^N (com N não negativo)**. Isso se deve pela necessidade de haver uma quantidade exata de _Bits_ que represente de forma exata a quantidade de endereços presentes em uma linha. Caso o número inteiro em questão fuja dessa forma, ele será arredondado para baixo (Por exemplo, caso o valor seja 10, será arredondado para 8 = 2^3). Além disso, a quantidadede linhas nas Memórias Caches Privadas **deve ser menor** que a quantidade de linhas na Memória Cache Compartilhada. Caso essas restrições não sejam seguidas, a simulação resultará em erros.
 
 O segundo arquivo de entrada deve ser um arquivo que contenha os acessos realizado no processamento, no qual cada linha possui três elementos separados por espaço:
 1. Índice do processador utilizado

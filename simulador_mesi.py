@@ -184,8 +184,8 @@ def main() -> None:
             except FileNotFoundError:
                 print('\nERRO: Arquivo de entrada não encontrado.')
             else:
-                tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag = le_configuracao(arq_conf)
-                simulador_mesi(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag, arq_entrada)
+                tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao, numero_bits_tag = le_configuracao(arq_conf)
+                simulador_mesi(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao, numero_bits_tag, arq_entrada)
     else:
         print('\nERRO: Número de argumentos inválido.')
         print('Modo de uso: python trabalho.py nome_arquivo_configuracao nome_arquivo_entrada')
@@ -196,31 +196,40 @@ def le_configuracao(arq_cong: io.TextIOWrapper) -> tuple:
     '''
     Lê o arquivo de configuração e retorna as configurações da simulação.
     '''
-    tamanho_bloco = int(arq_cong.readline())
     try:
-        numero_bits_tag = 32 - int(math.log(tamanho_bloco, 2))
-    except:
-        raise ValueError('ERRO: Tamanho de bloco deve ser da forma 2^N!')
-    else:
+        tamanho_bloco = int(arq_cong.readline())
         tamanho_cache_privada = int(arq_cong.readline())
         tamanho_cache_compartilhada = int(arq_cong.readline())
-        if tamanho_cache_privada >= tamanho_cache_compartilhada:
-            raise ValueError('ERRO: Tamanho das Memórias Caches Privadas deve ser menor que o tamanho da Memória Cache Compartilhada!')
-        quantidade_blocos_memoria_principal = int(arq_cong.readline())
         numero_processadores = int(arq_cong.readline())
         politica_substituicao = int(arq_cong.readline())
+    except:
+        raise ValueError('ERRO: Leitura das configurações inválida - Colocar apenas um número inteiro por linha!')
+    else:
+        if tamanho_bloco <= 0:
+            raise ValueError('ERRO: Valor inválido para tamanho de bloco!')
+        elif tamanho_cache_privada <= 0:
+            raise ValueError('ERRO: Valor inválido para quantidade de linhas nas Memórias Caches Privadas!')
+        elif tamanho_cache_compartilhada <= 0:
+            raise ValueError('ERRO: Valor inválido para quantidade de linhas na Memória Cache Compartilhada!')
+        elif numero_processadores <= 0:
+            raise ValueError('ERRO: Valor inválido para número de processadores!')
+        elif politica_substituicao != 0 and politica_substituicao != 1:
+            raise ValueError('ERRO: Valor inválido para política de substituição - Deve ser 0 (LRU) ou 1 (FIFO)!')
+        elif tamanho_cache_privada >= tamanho_cache_compartilhada:
+            raise ValueError('ERRO: Tamanho das Memórias Caches Privadas deve ser menor que o tamanho da Memória Cache Compartilhada!')
+        numero_bits_tag = 32 - int(math.log(tamanho_bloco, 2))
         arq_cong.close()
-        return tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag
+    return tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao, numero_bits_tag
 
-def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int, arq_entrada: io.TextIOWrapper) -> None:
+def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int, arq_entrada: io.TextIOWrapper) -> None:
     '''
     Realiza a simulação de um protocolo MESI em um multiprocessador a partir das configurações passadas.
     '''
     # Iniciando a construção do Log
     log = codecs.open('simulador.txt', 'w', 'utf-8')
-    console_configuracao(log, tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao)
+    console_configuracao(log, tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao)
     # Inicia o sistema de memórias
-    cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, quantidade_blocos_memoria_principal, numero_processadores, politica_substituicao, numero_bits_tag)
+    cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao, numero_bits_tag)
     print('\nSistema de Memória Criado\n')
     log.write('\nSistema de Memória Criado\n')
     console_sistema_memoria(log, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
@@ -229,54 +238,62 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     while len(entrada) > 0:
         processador, tipo_operacao, endereco = int(entrada[0]), entrada[1], bin(int(entrada[2], 16))[2:].zfill(32)
         console_acesso(log, processador, tipo_operacao, endereco)
+        # ERRO: Processador fora de alcance!
+        if processador >= len(cachesPrivadasDados):
+            raise ValueError('ERRO: Processador fora de alcance!')
         # Leitura de instrução
-        if tipo_operacao == '0':
+        elif tipo_operacao == '0':
             if endereco[:numero_bits_tag] in cachesPrivadasInstrucoes[processador].linhas_cache:
                 # Cache Hit
                 cachesPrivadasInstrucoes[processador].cache_hit(endereco)
-                log.write('Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                log.write('BARRAMENTO: Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Hit para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
             else:
                 # Cache Miss
                 cachesPrivadasInstrucoes[processador].cache_miss(endereco, cacheCompartilhada, memoriaPrincipal)
-                log.write('Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                log.write('BARRAMENTO: Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
         # Leitura de dado
         elif tipo_operacao == '2':
             if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
                 # Cache Hit
                 cachesPrivadasDados[processador].cache_hit(endereco)
-                log.write('Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                # Alteração do estado do bloco do endereço nas demais caches
-                if endereco[:numero_bits_tag] in cachesPrivadasDados[proc].linhas_cache and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'M' and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'S':
-                    cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'E'
+                cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'E'
+                log.write('BARRAMENTO: Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Hit para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
             else:
                 # Cache Miss
+                # Entra como 'Bloco Exclusivo', provisoriamente (há a verificação da presença do bloco nas demais caches logo após a entrada do bloco)
                 cachesPrivadasDados[processador].cache_miss(endereco, 'E', cacheCompartilhada, memoriaPrincipal)
-                log.write('Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                log.write('BARRAMENTO: Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Miss para leitura de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
             # Alteração do estado do bloco do endereço nas demais caches
-            for proc in range(numero_processadores):
+            presente_em_outro_proc = False
+            for proc in range(len(cachesPrivadasDados)):
                 if proc != processador and endereco[:numero_bits_tag] in cachesPrivadasDados[proc].linhas_cache and cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado != 'I':
-                    cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'S'
+                    presente_em_outro_proc = True
+                    if (cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado == 'M' or cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado == 'E'):
+                        cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'S'
+            # Correção do Estado no Processador
+            if presente_em_outro_proc:
+                cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'S'
         # Escrita de dado
         elif tipo_operacao == '3':
             if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
                 # Cache Hit
                 cachesPrivadasDados[processador].cache_hit(endereco)
-                log.write('Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                log.write('BARRAMENTO: Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
                 cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'M'
             else:
                 # Cache Miss
-                log.write('Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
-                print('Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                log.write('BARRAMENTO: Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
+                print('BARRAMENTO: Cache Miss para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
                 cachesPrivadasDados[processador].cache_miss(endereco, 'M', cacheCompartilhada, memoriaPrincipal)
             # Alteração do estado do bloco do endereço nas demais caches
-            for proc in range(numero_processadores):
+            for proc in range(len(cachesPrivadasDados)):
                 if proc != processador and endereco[:numero_bits_tag] in cachesPrivadasDados[proc].linhas_cache:
-                    cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'I'
+                    cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'I'
         # Operação não identificada
         else:
             print('ERRO: Operação não identificada!')
@@ -286,7 +303,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     log.close()
     return None
 
-def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int) -> tuple:
+def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, numero_processadores: int, politica_substituicao: int, numero_bits_tag: int) -> tuple:
     '''
     Inicia o sistema de memória a partir das configurações passadas.
     '''
@@ -304,7 +321,7 @@ def inicia_sistema_memoria(tamanho_bloco: int, tamanho_cache_privada: int, taman
 
 # Funções de console e log ----------------------------------------------
 
-def console_configuracao(log: io.TextIOWrapper, tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, quantidade_blocos_memoria_principal: int, numero_processadores: int, politica_substituicao: int) -> None:
+def console_configuracao(log: io.TextIOWrapper, tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache_compartilhada: int, numero_processadores: int, politica_substituicao: int) -> None:
     '''
     Cria o texto de console da configuração utilizada na simulação.
     '''
@@ -313,7 +330,6 @@ def console_configuracao(log: io.TextIOWrapper, tamanho_bloco: int, tamanho_cach
     texto += 'Quantidade de Bits necessários para mapeamento do bloco: ' + str(32 - int(math.log(tamanho_bloco, 2))) + ' Bits.\n'
     texto += 'Quantidade de linhas presentes nas Memórias Caches Privadas: ' + str(tamanho_cache_privada) + ' linhas.\n'
     texto += 'Quantidade de linhas presentes na Memória Cache Compartilhada: ' + str(tamanho_cache_compartilhada) + ' linhas.\n'
-    texto += 'Quantidade de blocos presentes na Memória Principal: ' + str(quantidade_blocos_memoria_principal) + ' blocos.\n'
     texto += 'Quantidade de processadores: ' + str(numero_processadores) + ' processadores.\n'
     if politica_substituicao == 0:
         texto += 'Política de Substituição: 0 - Least Recently Used (LRU - Menos Usado Recentemente)\n'
