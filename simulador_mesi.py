@@ -1,5 +1,5 @@
 # Simulador de Coerência MESI
-# Aluno: Vitor da Rocha Machado (RA: 132769)
+# Aluno: Caetano Vendrame Mantovani (RA: 135846) e Vitor da Rocha Machado (RA: 132769)
 
 from dataclasses import dataclass
 from sys import argv
