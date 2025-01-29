@@ -177,7 +177,7 @@ def main() -> None:
         try:
             arq_conf = open(argv[1], 'r')
         except FileNotFoundError:
-            print('\nERRO: Arquivo de entrada não encontrado.')
+            print('\nERRO: Arquivo de configuração não encontrado.')
         else:
             try:
                 arq_entrada = open(argv[2], 'r')
@@ -228,10 +228,10 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
     # Iniciando a construção do Log
     log = codecs.open('simulador.txt', 'w', 'utf-8')
     console_configuracao(log, tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao)
-    # Inicia o sistema de memórias
+    # Inicia o sistema de memória
     cachesPrivadasDados, cachesPrivadasInstrucoes, cacheCompartilhada, memoriaPrincipal = inicia_sistema_memoria(tamanho_bloco, tamanho_cache_privada, tamanho_cache_compartilhada, numero_processadores, politica_substituicao, numero_bits_tag)
-    print('\nSistema de Memória Criado\n')
     log.write('\nSistema de Memória Criado\n')
+    print('\nSistema de Memória Criado\n')
     console_sistema_memoria(log, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
     # Acesso à memória
     entrada = arq_entrada.readline().split()
@@ -255,7 +255,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
                 print('BARRAMENTO: Cache Miss para leitura de instrução.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
         # Leitura de dado
         elif tipo_operacao == '2':
-            if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
+            if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache and cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado != 'I':
                 # Cache Hit
                 cachesPrivadasDados[processador].cache_hit(endereco)
                 cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'E'
@@ -279,7 +279,7 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
                 cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado = 'S'
         # Escrita de dado
         elif tipo_operacao == '3':
-            if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache:
+            if endereco[:numero_bits_tag] in cachesPrivadasDados[processador].linhas_cache and cachesPrivadasDados[processador].linhas_cache[endereco[:numero_bits_tag]].estado != 'I':
                 # Cache Hit
                 cachesPrivadasDados[processador].cache_hit(endereco)
                 log.write('BARRAMENTO: Cache Hit para escrita de dado.\n---------------------------------------------------------------------------------------------------------------------------------------------------------\n')
@@ -296,7 +296,8 @@ def simulador_mesi(tamanho_bloco: int, tamanho_cache_privada: int, tamanho_cache
                     cachesPrivadasDados[proc].linhas_cache[endereco[:numero_bits_tag]].estado = 'I'
         # Operação não identificada
         else:
-            print('ERRO: Operação não identificada!')
+            log.write('\nERRO: Operação não identificada!\n')
+            print('\nERRO: Operação não identificada!\n')
         console_sistema_memoria(log, cacheCompartilhada, cachesPrivadasInstrucoes, cachesPrivadasDados)
         entrada = arq_entrada.readline().split()
     arq_entrada.close()
